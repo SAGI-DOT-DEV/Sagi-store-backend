@@ -1,0 +1,407 @@
+generator client {
+provider = "prisma-client-js"
+}
+datasource db {
+provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+
+enum Role {
+ CUSTOMER
+ ADMIN
+}
+enum ProductStatus {
+ ACTIVE
+ DRAFT
+ ARCHIVED
+}
+enum InventoryType {
+ RECEIVED
+ ADJUSTMENT
+ RESERVED
+ RELEASED
+ SOLD
+ RETURNED
+}
+enum OrderStatus {
+ PENDING_PAYMENT
+ PAYMENT_PROCESSING
+ PAID
+ PROCESSING
+ SHIPPED
+ OUT_FOR_DELIVERY
+ DELIVERED
+ CANCELLED
+ REFUNDED
+ PAYMENT_REVIEW_REQUIRED
+}
+enum PaymentStatus {
+ PENDING
+ PROCESSING
+ SUCCEEDED
+ FAILED
+ CANCELED
+ REFUNDED
+ REVIEW_REQUIRED
+}
+enum WebhookStatus {
+ RECEIVED
+ PROCESSING
+ PROCESSED
+ FAILED
+}
+enum NotificationStatus {
+ PENDING
+ SENT
+ FAILED
+}
+enum ReviewStatus {
+ PENDING
+ APPROVED
+ REJECTED
+}
+
+model User {
+id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ role Role @default(CUSTOMER)
+ profile Profile?
+ sessions Session[]
+ addresses Address[]
+ cart Cart?
+ wishlist Wishlist?
+ orders Order[]
+ reviews Review[]
+ experienceReviews ExperienceReview[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Profile {
+id String @id @default(cuid())
+ userId String @unique
+ firstName String
+ lastName String
+ phone String?
+ avatar String?
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Address {
+id String @id @default(cuid())
+ userId String
+ label String?
+ line1 String
+ line2 String?
+ city String
+ state String?
+ country String
+ postalCode String?
+ isDefault Boolean @default(false)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([userId])
+}
+model Session {
+id String @id @default(cuid())
+ userId String
+ tokenHash String @unique
+ expiresAt DateTime
+ revokedAt DateTime?
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ @@index([userId,expiresAt])
+}
+model Category {
+id String @id @default(cuid())
+ name String
+ slug String @unique
+ description String?
+ products Product[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Product {
+id String @id @default(cuid())
+ categoryId String?
+ name String
+ slug String @unique
+ description String
+ status ProductStatus @default(DRAFT)
+ metadata Json?
+ category Category? @relation(fields:[categoryId],references:[id],onDelete:SetNull)
+ variants ProductVariant[]
+ images ProductImage[]
+ reviews Review[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([status,categoryId])
+}
+model ProductVariant {
+id String @id @default(cuid())
+ productId String
+ sku String @unique
+ name String?
+ price Decimal @db.Decimal(12,2)
+ attributes Json?
+ product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+ inventory Inventory?
+ cartItems CartItem[]
+ orderItems OrderItem[]
+ wishlistItems WishlistItem[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([productId])
+}
+model ProductImage {
+id String @id @default(cuid())
+ productId String
+ url String
+ alt String?
+ position Int @default(0)
+ product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+ @@index([productId])
+}
+model Inventory {
+id String @id @default(cuid())
+ variantId String @unique
+ quantity Int @default(0)
+ reservedQuantity Int @default(0)
+ variant ProductVariant @relation(fields:[variantId],references:[id],onDelete:Cascade)
+ transactions InventoryTransaction[]
+ updatedAt DateTime @updatedAt
+}
+model InventoryTransaction {
+id String @id @default(cuid())
+ inventoryId String
+ orderId String?
+ actorId String?
+ type InventoryType
+ previousQuantity Int
+ quantityChanged Int
+ newQuantity Int
+ reason String
+ transactionReference String?
+ metadata Json?
+ inventory Inventory @relation(fields:[inventoryId],references:[id])
+ order Order? @relation(fields:[orderId],references:[id])
+ createdAt DateTime @default(now())
+ @@index([orderId,createdAt])
+ @@index([transactionReference])
+}
+model Cart {
+id String @id @default(cuid())
+ userId String @unique
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ items CartItem[]
+ updatedAt DateTime @updatedAt
+}
+model CartItem {
+id String @id @default(cuid())
+ cartId String
+ variantId String
+ quantity Int
+ cart Cart @relation(fields:[cartId],references:[id],onDelete:Cascade)
+ variant ProductVariant @relation(fields:[variantId],references:[id])
+ @@unique([cartId,variantId])
+}
+model Wishlist {
+id String @id @default(cuid())
+ userId String @unique
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ items WishlistItem[]
+ createdAt DateTime @default(now())
+}
+model WishlistItem {
+id String @id @default(cuid())
+ wishlistId String
+ variantId String
+ wishlist Wishlist @relation(fields:[wishlistId],references:[id],onDelete:Cascade)
+ variant ProductVariant @relation(fields:[variantId],references:[id])
+ @@unique([wishlistId,variantId])
+}
+model Order {
+id String @id @default(cuid())
+ userId String
+ addressId String?
+ status OrderStatus @default(PENDING_PAYMENT)
+ currency String @default("USD")
+ subtotal Decimal @db.Decimal(12,2)
+ total Decimal @db.Decimal(12,2)
+ user User @relation(fields:[userId],references:[id])
+ items OrderItem[]
+ payments Payment[]
+ histories OrderStatusHistory[]
+ inventoryTransactions InventoryTransaction[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([userId,createdAt])
+ @@index([status])
+}
+model OrderItem {
+id String @id @default(cuid())
+ orderId String
+ variantId String
+ sku String
+ name String
+ unitPrice Decimal @db.Decimal(12,2)
+ quantity Int
+ order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+ variant ProductVariant @relation(fields:[variantId],references:[id])
+}
+model OrderStatusHistory {
+id String @id @default(cuid())
+ orderId String
+ actorId String?
+ previousStatus OrderStatus?
+ newStatus OrderStatus
+ reason String?
+ order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ @@index([orderId,createdAt])
+}
+model Payment {
+id String @id @default(cuid())
+ orderId String
+ transactionReference String @unique
+ provider String
+ status PaymentStatus @default(PENDING)
+ amount Decimal @db.Decimal(12,2)
+ currency String
+ paymentIntentId String? @unique
+ checkoutSessionId String? @unique
+ customerId String?
+ chargeId String?
+ refundId String?
+ disputeId String?
+ providerStatus String?
+ failureCode String?
+ failureMessage String?
+ order Order @relation(fields:[orderId],references:[id])
+ attempts PaymentAttempt[]
+ logs TransactionLog[]
+ stripeEvents StripeEvent[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([orderId])
+ @@index([status,createdAt])
+ @@index([chargeId])
+}
+model PaymentAttempt {
+id String @id @default(cuid())
+ paymentId String
+ idempotencyKey String @unique
+ status PaymentStatus @default(PENDING)
+ providerReference String?
+ failureCode String?
+ failureMessage String?
+ metadata Json?
+ payment Payment @relation(fields:[paymentId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([paymentId])
+}
+model StripeEvent {
+id String @id
+ type String
+ apiVersion String?
+ livemode Boolean
+ status WebhookStatus @default(RECEIVED)
+ attempts Int @default(0)
+ payload Json
+ errorMessage String?
+ paymentId String?
+ payment Payment? @relation(fields:[paymentId],references:[id])
+ receivedAt DateTime @default(now())
+ processedAt DateTime?
+ @@index([status,receivedAt])
+ @@index([paymentId])
+}
+model TransactionLog {
+id String @id @default(cuid())
+ transactionReference String
+ paymentId String?
+ orderId String?
+ userId String?
+ provider String?
+ type String
+ status String?
+ amount Decimal? @db.Decimal(12,2)
+ currency String?
+ stripeEventId String?
+ requestId String?
+ message String?
+ metadata Json?
+ payment Payment? @relation(fields:[paymentId],references:[id])
+ createdAt DateTime @default(now())
+ @@index([transactionReference,createdAt])
+ @@index([orderId])
+ @@index([stripeEventId])
+}
+model Review {
+id String @id @default(cuid())
+ userId String
+ productId String
+ orderId String
+ rating Int
+ comment String?
+ status ReviewStatus @default(PENDING)
+ user User @relation(fields:[userId],references:[id])
+ product Product @relation(fields:[productId],references:[id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([userId,productId,orderId])
+}
+model ExperienceReview {
+id String @id @default(cuid())
+ userId String
+ orderId String
+ deliveryRating Int?
+ checkoutRating Int?
+ overallRating Int
+ comment String?
+ user User @relation(fields:[userId],references:[id])
+ createdAt DateTime @default(now())
+ @@unique([userId,orderId])
+}
+model Notification {
+id String @id @default(cuid())
+ userId String?
+ orderId String?
+ transactionReference String?
+ type String
+ status NotificationStatus @default(PENDING)
+ createdAt DateTime @default(now())
+}
+model EmailLog {
+id String @id @default(cuid())
+ recipient String
+ template String
+ status NotificationStatus
+ providerMessageId String?
+ error String?
+ orderId String?
+ transactionReference String?
+ sentAt DateTime?
+ createdAt DateTime @default(now())
+}
+model AuditLog {
+id String @id @default(cuid())
+ actorId String?
+ actorRole Role?
+ action String
+ entityType String
+ entityId String?
+ previousValue Json?
+ newValue Json?
+ metadata Json?
+ ipAddress String?
+ userAgent String?
+ createdAt DateTime @default(now())
+ @@index([entityType,entityId])
+ @@index([actorId,createdAt])
+}
+
+

@@ -1,0 +1,4 @@
+import 'dotenv/config';
+import { z } from 'zod';
+const schema = z.object({ NODE_ENV:z.enum(['development','test','production']).default('development'), PORT:z.coerce.number().default(3000), DATABASE_URL:z.string().url(), JWT_SECRET:z.string().min(32), JWT_REFRESH_SECRET:z.string().min(32), JWT_ACCESS_TTL:z.string().default('15m'), JWT_REFRESH_TTL_DAYS:z.coerce.number().positive().default(30), STRIPE_SECRET_KEY:z.string().min(1), STRIPE_WEBHOOK_SECRET:z.string().min(1), CORS_ORIGIN:z.string().default('http://localhost:5173'), LOG_LEVEL:z.string().default('info'), RATE_LIMIT_WINDOW_MS:z.coerce.number().default(900000), RATE_LIMIT_MAX:z.coerce.number().default(200), AUTH_RATE_LIMIT_MAX:z.coerce.number().default(10), SWAGGER_ENABLED:z.coerce.boolean().default(false) });
+export const env = schema.parse(process.env);

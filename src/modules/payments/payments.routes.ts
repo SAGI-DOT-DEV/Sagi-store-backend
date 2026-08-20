@@ -1,0 +1,2 @@
+import { Router } from 'express'; import { authenticate } from '../../core/middleware/auth.js'; import { paymentService } from './payment.service.js'; import { ValidationError } from '../../core/errors/app-error.js';
+export const paymentsRouter=Router();paymentsRouter.post('/checkout',authenticate,async(req,res,next)=>{try{const key=req.header('idempotency-key');if(!key)throw new ValidationError('Idempotency-Key header is required');res.status(201).json({success:true,data:await paymentService.checkout(req.body.orderId,req.user!.id,key)});}catch(e){next(e)}});
