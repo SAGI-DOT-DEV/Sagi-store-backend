@@ -1,0 +1,318 @@
+{
+  "info": {
+    "_postman_id": "c84ee569-08ec-4ab7-a2a6-dd8b04d21a3b",
+    "name": "SAGI Local Stripe Checkout",
+    "description": "Local end-to-end API flow for Stripe Checkout. Start `npm run dev` and `stripe listen --forward-to http://localhost:3000/api/v1/webhooks/stripe` first. Run the requests in order. After registering the admin account, promote it once with Prisma Studio because the API intentionally has no role-promotion endpoint. Copy the customer verification token from the received email into `verificationToken` before running the verification request. The Checkout URL must be opened manually in a browser to complete payment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "customerEmail", "value": "igwep5537@gmail.com" },
+    { "key": "customerPassword", "value": "Passw0rd!123" },
+    { "key": "customerFirstName", "value": "Test" },
+    { "key": "customerLastName", "value": "Customer" },
+    { "key": "verificationToken", "value": "" },
+    { "key": "adminEmail", "value": "lilrichie5537@gmail.com" },
+    { "key": "adminPassword", "value": "Passw0rd!123" },
+    { "key": "adminFirstName", "value": "Test" },
+    { "key": "adminLastName", "value": "Admin" },
+    { "key": "adminVerificationToken", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "variantId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "checkoutUrl", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Register customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\",\n  \"firstName\": \"{{customerFirstName}}\",\n  \"lastName\": \"{{customerLastName}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Registration accepted', () => pm.response.to.have.status(202));", "pm.test('Verification email was accepted by Gmail', () => pm.expect(pm.response.json().data.verificationEmailSent).to.eql(true));"] } }]
+    },
+    {
+      "name": "0. Verify customer email (paste token first)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verificationToken}}\"\n}" },
+        "url": "{{baseUrl}}/api/v1/auth/verify-email"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Customer email verified', () => pm.response.to.have.status(200));", "pm.test('Verification succeeded', () => pm.expect(pm.response.json().data.verified).to.eql(true));"] } }]
+    },
+    {
+      "name": "0. Register admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"firstName\": \"{{adminFirstName}}\",\n  \"lastName\": \"{{adminLastName}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/register"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin registration accepted', () => pm.response.to.have.status(202));", "pm.test('Verification email was accepted by Gmail', () => pm.expect(pm.response.json().data.verificationEmailSent).to.eql(true));"] } }]
+    },
+    {
+      "name": "0. Verify admin email (paste token first)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{adminVerificationToken}}\"\n}" },
+        "url": "{{baseUrl}}/api/v1/auth/verify-email"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin email verified', () => pm.response.to.have.status(200));", "pm.test('Verification succeeded', () => pm.expect(pm.response.json().data.verified).to.eql(true));"] } }]
+    },
+    {
+      "name": "0. Login admin (promote account in Prisma Studio first)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}" },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin login succeeded', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.expect(body.data.user.role, 'Promote this account to ADMIN in Prisma Studio, then log in again').to.eql('ADMIN');", "pm.collectionVariables.set('adminAccessToken', body.data.accessToken);"] } }]
+    },
+    {
+      "name": "0. Get Cloudinary product-image upload signature",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/api/v1/uploads/products/cloudinary-signature"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Cloudinary signature generated', () => pm.response.to.have.status(200));", "pm.expect(pm.response.json().data.signature).to.be.a('string').and.not.empty;"] } }]
+    },
+    {
+      "name": "0. Create category",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Clothing\",\n  \"slug\": \"clothing-{{$guid}}\",\n  \"description\": \"Apparel and clothing products\"\n}" },
+        "url": "{{baseUrl}}/api/v1/categories"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Category created', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('categoryId', pm.response.json().data.id);"] } }]
+    },
+    {
+      "name": "0. Create active product with inventory",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman Test T-Shirt\",\n  \"slug\": \"postman-test-{{$guid}}\",\n  \"description\": \"Product created by the local Stripe Checkout collection\",\n  \"status\": \"ACTIVE\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"variants\": [\n    {\n      \"sku\": \"POSTMAN-{{$guid}}\",\n      \"name\": \"Standard\",\n      \"price\": 19.99,\n      \"inventory\": { \"quantity\": 10 }\n    }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/products"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Product created', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('productId', pm.response.json().data.id);"] } }]
+    },
+    {
+      "name": "0. Read created product and save variant ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Created product is available', () => pm.response.to.have.status(200));", "const variant = pm.response.json().data.variants[0];", "pm.expect(variant.inventory.quantity).to.be.above(0);", "pm.collectionVariables.set('variantId', variant.id);"] } }]
+    },
+    {
+      "name": "1. Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API is healthy', () => pm.response.to.have.status(200));",
+              "pm.test('Health payload is successful', () => pm.expect(pm.response.json().data.status).to.eql('ok'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "type": "text/javascript", "exec": ["const orderId = pm.variables.replaceIn('{{orderId}}');", "pm.variables.set('checkoutRequestKey', `checkout-${orderId}`);"] }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login succeeded', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.expect(body.data.accessToken).to.be.a('string').and.not.empty;",
+              "pm.collectionVariables.set('accessToken', body.data.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. List active products",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Products returned', () => pm.response.to.have.status(200));",
+              "const products = pm.response.json().data.items;",
+              "pm.expect(products.length, 'Create an active product with inventory before continuing').to.be.above(0);",
+              "const variant = products.flatMap(product => product.variants).find(item => item.inventory && item.inventory.quantity > item.inventory.reservedQuantity);",
+              "pm.expect(variant, 'No in-stock active variant found').to.exist;",
+              "pm.collectionVariables.set('variantId', variant.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Add first in-stock variant to cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"quantity\": 1\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/cart/items"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Cart item created', () => pm.response.to.have.status(201));"] } }]
+    },
+    {
+      "name": "5. Create order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/api/v1/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order created', () => pm.response.to.have.status(201));",
+              "const order = pm.response.json().data;",
+              "pm.expect(order.status).to.eql('PENDING_PAYMENT');",
+              "pm.collectionVariables.set('orderId', order.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Create Stripe Checkout Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Idempotency-Key", "value": "checkout-{{$guid}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/payments/checkout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Checkout session created', () => pm.response.to.have.status(201));",
+              "const checkout = pm.response.json().data;",
+              "pm.expect(checkout.url).to.be.a('string').and.not.empty;",
+              "pm.collectionVariables.set('checkoutUrl', checkout.url);",
+              "console.log('Open this URL in a browser and pay with Stripe test card 4242 4242 4242 4242:', checkout.url);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Verify paid order (run after browser payment)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Order request succeeded', () => pm.response.to.have.status(200));",
+              "pm.test('Stripe webhook marked order as paid', () => pm.expect(pm.response.json().data.status).to.eql('PAID'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Inspect Stripe webhook events (admin)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+        "url": "{{baseUrl}}/api/v1/admin/stripe/events"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Stripe events request succeeded', () => pm.response.to.have.status(200));",
+        "const events = pm.response.json().data;",
+        "pm.expect(events).to.be.an('array');",
+        "console.log('Latest Stripe events:', events.slice(0, 5));"
+      ] } }]
+    }
+  ]
+}

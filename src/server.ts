@@ -1,2 +1,2 @@
-import { app } from './app.js'; import { env } from './config/env.js'; import { logger } from './core/logger/logger.js'; import { prisma } from './database/prisma.js';
-const server=app.listen(env.PORT,()=>logger.info({port:env.PORT},'SAGI API listening')); const shutdown=async()=>{server.close();await prisma.$disconnect();};process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
+import { app } from './app.js'; import { env } from './config/env.js'; import { logger } from './core/logger/logger.js'; import { prisma } from './database/prisma.js'; import { scheduleBackups } from './modules/backups/backup.service.js';
+scheduleBackups();const server=app.listen(env.PORT,()=>logger.info({port:env.PORT},'SAGI API listening')); const shutdown=async()=>{server.close();await prisma.$disconnect();};process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

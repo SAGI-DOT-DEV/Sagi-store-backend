@@ -1,0 +1,4 @@
+ALTER TABLE "ProductVariant" ADD COLUMN "weightGrams" INTEGER,
+ADD COLUMN "lengthCm" DECIMAL(10,2),
+ADD COLUMN "widthCm" DECIMAL(10,2),
+ADD COLUMN "heightCm" DECIMAL(10,2);

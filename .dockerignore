@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.codex
+SAGI-*.postman_collection.json
+README.md
+TESTING.md
+DEVELOPMENT_TODO.md

@@ -4,6 +4,7 @@ provider = "prisma-client-js"
 datasource db {
 provider = "postgresql"
  url = env("DATABASE_URL")
+directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -60,6 +61,16 @@ enum ReviewStatus {
  APPROVED
  REJECTED
 }
+enum BackupStatus {
+ PENDING
+ RUNNING
+ SUCCEEDED
+ FAILED
+}
+enum BackupSource {
+ MANUAL
+ SCHEDULED
+}
 
 model User {
 id String @id @default(cuid())
@@ -74,6 +85,26 @@ id String @id @default(cuid())
  orders Order[]
  reviews Review[]
  experienceReviews ExperienceReview[]
+ emailVerifiedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model PendingUserRegistration {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ firstName String
+ lastName String
+ tokenHash String @unique
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+}
+model Distributor {
+ id String @id @default(cuid())
+ firstName String
+ lastName String
+ phone String
+ email String @unique
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
 }
@@ -100,6 +131,7 @@ id String @id @default(cuid())
  postalCode String?
  isDefault Boolean @default(false)
  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ orders Order[]
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
  @@index([userId])
@@ -145,6 +177,10 @@ id String @id @default(cuid())
  sku String @unique
  name String?
  price Decimal @db.Decimal(12,2)
+ weightGrams Int?
+ lengthCm Decimal? @db.Decimal(10,2)
+ widthCm Decimal? @db.Decimal(10,2)
+ heightCm Decimal? @db.Decimal(10,2)
  attributes Json?
  product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
  inventory Inventory?
@@ -224,13 +260,18 @@ id String @id @default(cuid())
 }
 model Order {
 id String @id @default(cuid())
- userId String
- addressId String?
+userId String
+addressId String?
  status OrderStatus @default(PENDING_PAYMENT)
  currency String @default("USD")
  subtotal Decimal @db.Decimal(12,2)
+ shippingAmount Decimal @default(0) @db.Decimal(12,2)
  total Decimal @db.Decimal(12,2)
+ shippingRateId String?
+ shippingCarrier String?
+ shippingService String?
  user User @relation(fields:[userId],references:[id])
+ address Address? @relation(fields:[addressId],references:[id],onDelete:SetNull)
  items OrderItem[]
  payments Payment[]
  histories OrderStatusHistory[]
@@ -238,6 +279,7 @@ id String @id @default(cuid())
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
  @@index([userId,createdAt])
+ @@index([addressId])
  @@index([status])
 }
 model OrderItem {
@@ -387,6 +429,23 @@ id String @id @default(cuid())
  sentAt DateTime?
  createdAt DateTime @default(now())
 }
+model Backup {
+ id String @id @default(cuid())
+ status BackupStatus @default(PENDING)
+ source BackupSource
+ initiatedById String?
+ driveFileId String?
+ fileName String
+ sizeBytes BigInt?
+ checksumSha256 String?
+ encryptionIv String?
+ encryptionAuthTag String?
+ errorMessage String?
+ startedAt DateTime @default(now())
+ completedAt DateTime?
+ @@index([status,startedAt])
+ @@index([initiatedById,startedAt])
+}
 model AuditLog {
 id String @id @default(cuid())
  actorId String?
@@ -404,4 +463,20 @@ id String @id @default(cuid())
  @@index([actorId,createdAt])
 }
 
-
+model ShippingSettings {
+ id String @id
+ freeShippingThreshold Decimal? @db.Decimal(12,2)
+ currency String @default("CAD")
+ shipFromName String
+ shipFromCompany String?
+ shipFromPhone String?
+ shipFromEmail String?
+ shipFromStreet1 String
+ shipFromStreet2 String?
+ shipFromCity String
+ shipFromState String?
+ shipFromPostalCode String
+ shipFromCountry String @default("CA")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
