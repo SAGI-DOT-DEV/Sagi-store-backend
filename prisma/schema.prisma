@@ -161,6 +161,8 @@ id String @id @default(cuid())
  name String
  slug String @unique
  description String
+ origin String?
+ highlights String[] @default([])
  status ProductStatus @default(DRAFT)
  metadata Json?
  category Category? @relation(fields:[categoryId],references:[id],onDelete:SetNull)
@@ -199,6 +201,17 @@ id String @id @default(cuid())
  position Int @default(0)
  product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
  @@index([productId])
+}
+model Recipe {
+ id String @id @default(cuid())
+ title String
+ image String
+ procedures String[]
+ notes String?
+ equipment String[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([createdAt])
 }
 model Inventory {
 id String @id @default(cuid())

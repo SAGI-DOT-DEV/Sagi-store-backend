@@ -1,7 +1,7 @@
 import { prisma } from '../../database/prisma.js';
 import { InventoryError,NotFoundError } from '../../core/errors/app-error.js';
 
-const cartDetails={items:{include:{variant:{include:{product:true,inventory:true}}},orderBy:{variantId:'asc' as const}}};
+const cartDetails={items:{include:{variant:{include:{product:{include:{images:{orderBy:{position:'asc' as const}}}},inventory:true}}},orderBy:{variantId:'asc' as const}}};
 
 export class CartService {
  private async cart(userId:string){return prisma.cart.upsert({where:{userId},create:{userId},update:{},include:cartDetails});}

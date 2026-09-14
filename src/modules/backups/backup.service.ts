@@ -20,7 +20,7 @@ function configuration(){
  return {key,credentials:JSON.parse(Buffer.from(env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64,'base64').toString('utf8'))};
 }
 
-function dumpDatabase(destination:string){return new Promise<void>((resolve,reject)=>{const child=spawn('pg_dump',['--format=custom','--no-owner','--no-privileges',`--file=${destination}`,env.DATABASE_URL],{stdio:['ignore','ignore','pipe']});child.stderr.resume();child.on('error',()=>reject(new Error('pg_dump could not be started; install PostgreSQL client tools')));child.on('close',code=>code===0?resolve():reject(new Error(`pg_dump failed (exit ${code})`)));});}
+function dumpDatabase(destination:string){return new Promise<void>((resolve,reject)=>{const child=spawn('pg_dump',['--format=custom','--no-owner','--no-privileges',`--file=${destination}`,env.BACKUP_DATABASE_URL??env.DATABASE_URL],{stdio:['ignore','ignore','pipe']});let stderr='';child.stderr.setEncoding('utf8');child.stderr.on('data',chunk=>{stderr+=chunk;});child.on('error',()=>reject(new Error('pg_dump could not be started; install PostgreSQL client tools')));child.on('close',code=>code===0?resolve():reject(new Error(`pg_dump failed (exit ${code}): ${stderr.trim().slice(0,1000)}`)));});}
 
 async function checksum(path:string){const hash=createHash('sha256');for await(const chunk of createReadStream(path))hash.update(chunk);return hash.digest('hex');}
 

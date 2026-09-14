@@ -1,0 +1,3 @@
+ALTER TABLE "Product"
+ADD COLUMN "origin" TEXT,
+ADD COLUMN "highlights" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

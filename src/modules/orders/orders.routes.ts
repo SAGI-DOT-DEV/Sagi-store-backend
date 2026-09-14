@@ -8,7 +8,13 @@ const createOrder=z.object({body:z.object({addressId:z.string().cuid(),shippingR
 ordersRouter.post('/',validate(createOrder),async(req,res,next)=>{try{res.status(201).json({success:true,data:await ordersService.create(req.user!.id,req.body.addressId,req.body.shippingRateId)});}catch(e){next(e)}});
 
 // Kept separate as a stable customer-facing route; GET /orders remains compatible.
-ordersRouter.get('/purchase-history',async(req,res,next)=>{try{const orders=await prisma.order.findMany({where:{userId:req.user!.id},include:orderDetails,orderBy:{createdAt:'desc'}});res.json({success:true,data:orders});}catch(e){next(e)}});
+ordersRouter.get('/purchase-history',async(req,res,next)=>{try{
+ const orders=await prisma.order.findMany({where:{userId:req.user!.id},include:orderDetails,orderBy:{createdAt:'desc'}});
+ const variantIds=[...new Set(orders.flatMap(order=>order.items.map(item=>item.variantId)))];
+ const variants=await prisma.productVariant.findMany({where:{id:{in:variantIds},product:{status:'ACTIVE'}},select:{id:true,product:{select:{images:{orderBy:{position:'asc'},take:1,select:{url:true}}}}}});
+ const catalog=new Map(variants.map(variant=>[variant.id,variant.product]));
+ res.json({success:true,data:orders.map(order=>({...order,items:order.items.map(item=>({...item,image:catalog.get(item.variantId)?.images[0]?.url||null,availableInStore:catalog.has(item.variantId)}))}))});
+}catch(e){next(e)}});
 
 ordersRouter.get('/',async(req,res,next)=>{try{res.json({success:true,data:await prisma.order.findMany({where:{userId:req.user!.id},include:orderDetails,orderBy:{createdAt:'desc'}})});}catch(e){next(e)}});
 

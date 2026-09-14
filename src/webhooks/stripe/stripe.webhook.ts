@@ -5,6 +5,7 @@ import { prisma } from '../../database/prisma.js';
 import { retryWriteConflict } from '../../database/transaction.js';
 import { releaseReservedInventory, sellReservedInventory } from '../../modules/inventory/inventory.service.js';
 import { sendOrderEmail } from '../../modules/auth/email-verification.service.js';
+import { removePurchasedQuantities } from '../../modules/cart/purchased-cart.service.js';
 
 const stripe=new Stripe(env.STRIPE_SECRET_KEY);
 
@@ -15,6 +16,7 @@ const succeeded=async(paymentId:string,eventId:string)=>retryWriteConflict(()=>p
  if(claimed.count===0)return;
  const paid=await tx.order.updateMany({where:{id:payment.orderId,status:{in:['PENDING_PAYMENT','PAYMENT_PROCESSING']}},data:{status:'PAID'}});
  if(paid.count===0)throw new Error('Order cannot be fulfilled from its current status');
+ await removePurchasedQuantities(tx,payment.order.userId,payment.order.items);
  await tx.paymentAttempt.updateMany({where:{paymentId:payment.id,status:'PROCESSING'},data:{status:'SUCCEEDED',failureCode:null,failureMessage:null}});
  await tx.orderStatusHistory.create({data:{orderId:payment.orderId,previousStatus:payment.order.status,newStatus:'PAID',reason:'Confirmed by Stripe webhook'}});
  for(const item of [...payment.order.items].sort((a,b)=>a.variantId.localeCompare(b.variantId)))await sellReservedInventory(tx,{variantId:item.variantId,quantity:item.quantity,orderId:payment.orderId,transactionReference:payment.transactionReference});

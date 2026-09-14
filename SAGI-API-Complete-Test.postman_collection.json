@@ -1,13 +1,13 @@
 {
   "info": {
-    "name": "SAGI API - Complete End-to-End Tests",
+    "name": "SAGI API - Render Production End-to-End Tests",
     "description": "Complete collection for testing implemented SAGI API features. Run requests in order. Includes customer wishlist, Shippo shipping rates, checkout, orders, admin operations, reports, and Stripe events. Tracking is intentionally excluded.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000"
+      "value": "https://sagi-store-backend.onrender.com"
     },
     {
       "key": "customerEmail",
@@ -55,6 +55,10 @@
     },
     {
       "key": "shippingRateId",
+      "value": ""
+    },
+    {
+      "key": "backupId",
       "value": ""
     }
   ],
@@ -799,6 +803,31 @@
             ],
             "url": "{{baseUrl}}/api/v1/admin/stripe/events"
           }
+        },
+        {
+          "name": "Run manual database backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/backups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Manual backup started and completed', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "if (pm.response.json().data && pm.response.json().data.id) pm.collectionVariables.set('backupId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List backups",

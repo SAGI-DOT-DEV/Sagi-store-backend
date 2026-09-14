@@ -8,7 +8,7 @@ const variantId=z.string().min(1);
 const quantity=z.number().int().min(1).max(100);
 const addItem=z.object({body:z.object({variantId,quantity}),params:z.object({}),query:z.object({})});
 const updateItem=z.object({body:z.object({quantity}),params:z.object({variantId}),query:z.object({})});
-const removeItem=z.object({body:z.object({}),params:z.object({variantId}),query:z.object({})});
+const removeItem=z.object({body:z.object({}).default({}),params:z.object({variantId}),query:z.object({})});
 
 export const cartRouter=Router();
 cartRouter.use(authenticate);
