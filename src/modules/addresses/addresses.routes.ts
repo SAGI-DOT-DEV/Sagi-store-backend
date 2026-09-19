@@ -4,10 +4,12 @@ import { prisma } from '../../database/prisma.js';
 import { authenticate } from '../../core/middleware/auth.js';
 import { NotFoundError } from '../../core/errors/app-error.js';
 import { validate } from '../../core/middleware/validate.js';
+import { addressPhoneSchema } from './address-phone.schema.js';
 
 const fields={label:z.string().trim().max(80).optional(),line1:z.string().trim().min(1).max(200),line2:z.string().trim().max(200).optional(),city:z.string().trim().min(1).max(100),state:z.string().trim().max(100).optional(),country:z.string().trim().length(2).transform(v=>v.toUpperCase()),postalCode:z.string().trim().min(3).max(20),isDefault:z.boolean().optional()};
-const createSchema=z.object({body:z.object(fields).strict(),params:z.object({}),query:z.object({})});
-const updateSchema=z.object({body:z.object(fields).partial().strict().refine(v=>Object.keys(v).length>0),params:z.object({id:z.string().cuid()}),query:z.object({})});
+const addressFields={...fields,phone:addressPhoneSchema,phone2:addressPhoneSchema};
+const createSchema=z.object({body:z.object(addressFields).strict(),params:z.object({}),query:z.object({})});
+const updateSchema=z.object({body:z.object(addressFields).partial().strict().refine(v=>Object.keys(v).length>0),params:z.object({id:z.string().cuid()}),query:z.object({})});
 const idSchema=z.object({body:z.object({}).default({}),params:z.object({id:z.string().cuid()}),query:z.object({})});
 export const addressesRouter=Router(); addressesRouter.use(authenticate);
 addressesRouter.get('/',async(req,res,next)=>{try{res.json({success:true,data:await prisma.address.findMany({where:{userId:req.user!.id},orderBy:[{isDefault:'desc'},{createdAt:'desc'}]})});}catch(e){next(e)}});

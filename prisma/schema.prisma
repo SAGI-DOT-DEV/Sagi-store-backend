@@ -122,6 +122,8 @@ id String @id @default(cuid())
 }
 model Address {
 id String @id @default(cuid())
+ phone String?
+ phone2 String?
  userId String
  label String?
  line1 String

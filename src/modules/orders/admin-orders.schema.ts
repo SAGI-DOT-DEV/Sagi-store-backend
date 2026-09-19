@@ -6,7 +6,7 @@ export function adminOrdersWhere(query:z.infer<typeof adminOrdersQuery>):Prisma.
 }
 export const adminOrderSelect={id:true,status:true,currency:true,total:true,createdAt:true,user:{select:{email:true,profile:{select:{firstName:true,lastName:true,phone:true}}}},_count:{select:{items:true}},items:{select:{id:true,name:true,quantity:true,variant:{select:{product:{select:{name:true}}}}}}} satisfies Prisma.OrderSelect;
 export const adminOrderDetailSelect={...adminOrderSelect,subtotal:true,shippingAmount:true,shippingCarrier:true,shippingService:true,
- address:{select:{line1:true,line2:true,city:true,state:true,country:true,postalCode:true}},
+ address:{select:{line1:true,line2:true,city:true,state:true,country:true,postalCode:true,phone:true,phone2:true}},
  items:{select:{id:true,name:true,sku:true,quantity:true,unitPrice:true,variant:{select:{product:{select:{images:{orderBy:{position:'asc'},take:1,select:{url:true}}}}}}}},
  histories:{orderBy:{createdAt:'asc'},select:{id:true,previousStatus:true,newStatus:true,createdAt:true}},
  payments:{orderBy:{createdAt:'desc'},select:{id:true,status:true,amount:true,currency:true,provider:true,transactionReference:true,createdAt:true}},
