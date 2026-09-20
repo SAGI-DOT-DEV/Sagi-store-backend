@@ -4,6 +4,16 @@ import { orderEmailTemplate } from './order-template.js';
 
 const order = { id: 'order-1', currency: 'CAD', subtotal: 40, shippingAmount: 5, total: 45, items: [{ name: 'Yam flour & rice', quantity: 2, unitPrice: 20 }] };
 describe('SAGI mail templates', () => {
+  it('uses pure white surfaces and a monochrome palette', () => {
+    const result = orderEmailTemplate({appUrl:'https://store.test',status:'PAID',order});
+    expect(result.html).toContain('background:#FFFFFF');
+    expect(result.html).toContain('bgcolor="#000000"');
+    const colors = result.html.match(/#[0-9a-f]{6}\b/gi) || [];
+    expect(colors.length).toBeGreaterThan(0);
+    for (const color of colors) {
+      expect(['#FFFFFF', '#000000', '#E5E5E5', '#D4D4D4', '#525252', '#737373']).toContain(color);
+    }
+  });
   it('escapes customer content and uses a readable logo with absolute links', () => {
     const result = storeEmail({appUrl:'https://store.test',title:'Welcome',preview:'Confirm email',firstName:'<img src=x>',body:emailParagraph('<script>bad</script>'),text:'Confirm email',action:{label:'Confirm email',url:'https://store.test/verify-email?token=a&type=user'}});
     expect(result.html).toContain('&lt;img src=x&gt;');
