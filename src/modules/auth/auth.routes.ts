@@ -1,4 +1,6 @@
 import { env } from '../../config/env.js';
+import rateLimit from 'express-rate-limit';
+import { resendVerification } from './pending-verification.service.js';
 import { AuthorizationError } from '../../core/errors/app-error.js';
 import { refreshCookieOptions, isAllowedAuthOrigin } from './session-policy.js';
 const cookieOptions = refreshCookieOptions(process.env.NODE_ENV === 'production');
@@ -7,6 +9,7 @@ const credentials=z.object({body:z.object({email:z.string().email(),password:z.s
 export const authRouter=Router(); const send=(res:import('express').Response,data:unknown)=>res.status(200).json({success:true,data});
 authRouter.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');if(req.method!=='GET'&&!isAllowedAuthOrigin(req.get('origin'),req.get('sec-fetch-site'),env.APP_URL,env.CORS_ORIGIN))return next(new AuthorizationError('Request origin is not allowed'));next();});
 authRouter.post('/register',validate(register),async(req,res,next)=>{try{res.status(202).json({success:true,data:await authService.register(req.body)});}catch(e){next(e)}});
+authRouter.post('/resend-verification',rateLimit({windowMs:60000,limit:3,standardHeaders:'draft-7',legacyHeaders:false}),validate(credentials),async(req,res,next)=>{try{res.status(202).json({success:true,data:await resendVerification(req.body.email,req.body.password)});}catch(e){next(e)}});
 authRouter.post('/login',validate(credentials),async(req,res,next)=>{try{const result=await authService.login(req.body.email,req.body.password);res.cookie('refreshToken',result.refreshToken,{...cookieOptions,maxAge:env.JWT_REFRESH_TTL_DAYS*86400000});send(res,{...result,refreshToken:undefined});}catch(e){next(e)}});
 authRouter.post('/verify-email',validate(verification),async(req,res,next)=>{try{const result=await authService.verifyEmail(req.body.token);if(!result)return send(res,{verified:false});res.cookie('refreshToken',result.refreshToken,{...cookieOptions,maxAge:env.JWT_REFRESH_TTL_DAYS*86400000});send(res,{verified:true,...result,refreshToken:undefined});}catch(e){next(e)}});
 authRouter.post('/refresh',async(req,res,next)=>{try{const result=await authService.rotate(req.cookies.refreshToken as string);res.cookie('refreshToken',result.refreshToken,{...cookieOptions,maxAge:env.JWT_REFRESH_TTL_DAYS*86400000});send(res,{accessToken:result.accessToken});}catch(e){next(e)}});
