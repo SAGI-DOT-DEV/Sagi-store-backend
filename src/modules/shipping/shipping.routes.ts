@@ -8,6 +8,12 @@ import { env } from '../../config/env.js';
 
 const requestSchema=z.object({body:z.object({addressId:z.string().cuid()}),params:z.object({}),query:z.object({})});
 export const shippingRouter=Router();
+// Public offer only: warehouse contact details remain admin-only.
+shippingRouter.get('/policy',async(_req,res,next)=>{try{
+ const settings=await prisma.shippingSettings.findUnique({where:{id:'default'},select:{freeShippingThreshold:true,currency:true}});
+ res.setHeader('Cache-Control','no-store');
+ res.json({success:true,data:{freeShippingThreshold:settings?.freeShippingThreshold==null?null:Number(settings.freeShippingThreshold),currency:settings?.currency??'CAD'}});
+}catch(error){next(error)}});
 shippingRouter.post('/rates',authenticate,validate(requestSchema),async(req,res,next)=>{try{
  if(!env.SHIPPO_API_KEY)throw new ValidationError('Shippo is not configured');
  const [address,settings,cart]=await Promise.all([
